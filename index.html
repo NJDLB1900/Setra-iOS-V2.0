@@ -571,15 +571,24 @@ body {
 #modal-root .overlay {
   position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 90;
   display: flex; align-items: center; justify-content: center; padding: 20px;
+  overflow-y: auto; -webkit-overflow-scrolling: touch; overscroll-behavior: contain;
   animation: fadeIn .2s ease;
 }
 #modal-root .modal {
   background: var(--surface); border: 1px solid var(--border-2); border-radius: 16px;
   width: 100%; max-width: 480px; padding: 24px; box-shadow: var(--shadow);
+  margin: auto; min-height: 0;
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  display: flex; flex-direction: column;
 }
-#modal-root .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; }
-#modal-root .modal-body { margin-bottom: 20px; }
-#modal-root .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+#modal-root .modal-grabber {
+  width: 36px; height: 4px; border-radius: 2px; background: var(--border-2);
+  margin: -10px auto 12px; flex: none;
+}
+#modal-root .modal-title { font-size: 18px; font-weight: 700; margin-bottom: 16px; flex: none; }
+#modal-root .modal-body { margin-bottom: 20px; flex: 1 1 auto; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+#modal-root .modal-actions { display: flex; gap: 10px; justify-content: flex-end; flex: none; flex-wrap: wrap; }
 #modal-root .field { margin-bottom: 14px; }
 #modal-root .field input, #modal-root .field textarea { width: 100%; }
 
@@ -2341,21 +2350,61 @@ function importData(file) {
 function openModal(title, bodyHTML, actions) {
   const root = $('#modal-root');
   root.innerHTML = `
-    <div class="overlay" id="mo">
-      <div class="modal">
-        <div class="modal-title">${esc(title)}</div>
-        <div class="modal-body">${bodyHTML}</div>
-        <div class="modal-actions">${actions.map((a, i) =>
-          `<button class="btn ${a.cls || ''}" data-i="${i}">${esc(a.label)}</button>`).join('')}
-        </div>
+  <div class="overlay" id="mo">
+    <div class="modal">
+      <div class="modal-grabber"></div>
+      <div class="modal-title">${esc(title)}</div>
+      <div class="modal-body">${bodyHTML}</div>
+      <div class="modal-actions">${actions.map((a, i) =>
+        `<button class="btn ${a.cls || ''}" data-i="${i}">${esc(a.label)}</button>`).join('')}
       </div>
-    </div>`;
+    </div>
+  </div>`;
   const ov = $('#mo');
   ov.addEventListener('mousedown', e => { if (e.target === ov) closeModal(); });
   actions.forEach((a, i) => {
-    ov.querySelector(`[data-i="${i}"]`).onclick = () => a.fn();
+  ov.querySelector(`[data-i="${i}"]`).onclick = () => a.fn();
   });
-}
+  enableModalSwipe(ov);
+  }
+  // 下拉关闭手势（手机端友好）：弹窗内容滚动到顶部后，向下滑动即可关闭
+  function enableModalSwipe(ov) {
+  const modal = ov.querySelector('.modal');
+  const body = modal.querySelector('.modal-body');
+  const atTop = () => !body || body.scrollTop <= 0;
+  const ignore = e => e.target.closest('button, input, select, textarea, a, [data-suggest]');
+  let startY = 0, dy = 0, dragging = false;
+  modal.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  if (ignore(e) || !atTop()) return;
+  startY = e.clientY; dy = 0; dragging = true;
+  });
+  modal.addEventListener('pointermove', e => {
+  if (!dragging) return;
+  if (!atTop()) { dragging = false; reset(); return; }
+  dy = Math.max(0, e.clientY - startY);
+  if (dy > 0) {
+    modal.style.transition = 'none';
+    modal.style.transform = 'translateY(' + (dy * 0.4).toFixed(1) + 'px)';
+    ov.style.transition = 'none';
+    ov.style.background = 'rgba(0,0,0,' + Math.max(0.15, 0.6 - dy / 600).toFixed(3) + ')';
+  }
+  });
+  const finish = () => {
+  if (!dragging) return;
+  dragging = false;
+  if (dy >= 80) { closeModal(); return; }
+  reset();
+  };
+  modal.addEventListener('pointerup', finish);
+  modal.addEventListener('pointercancel', () => { if (dragging) { dragging = false; reset(); } });
+  function reset() {
+  modal.style.transition = 'transform .25s ease';
+  modal.style.transform = '';
+  ov.style.transition = 'background .25s ease';
+  ov.style.background = '';
+  }
+  }
 function closeModal() {
   const root = $('#modal-root');
   if (root) root.innerHTML = '';
