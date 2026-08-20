@@ -604,6 +604,52 @@ body {
 .summary-meta { color: var(--text-2); font-size: 15px; line-height: 1.8; }
 .summary-actions { display: flex; gap: 12px; justify-content: center; margin-top: 22px; }
 
+/* ---------- 训练模板 ---------- */
+.tpl-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.tpl-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 20px; display: flex; flex-direction: column; gap: 12px; transition: .18s;
+}
+.tpl-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: var(--shadow); }
+.tpl-name { font-size: 19px; font-weight: 800; }
+.tpl-meta { display: flex; flex-direction: column; gap: 2px; font-size: 13px; color: var(--text-2); }
+.tpl-meta b { color: var(--text); font-weight: 600; }
+.tpl-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.tpl-stat {
+  font-family: var(--font-num); font-size: 12px; color: var(--accent);
+  background: var(--accent-dim); border: 1px solid var(--border-2);
+  padding: 5px 10px; border-radius: 999px;
+}
+.tpl-desc { font-size: 13px; color: var(--text-3); line-height: 1.6; }
+.tpl-btns { display: flex; gap: 10px; margin-top: auto; }
+.tpl-btns .btn { flex: 1; }
+.tpl-cat-tag {
+  font-size: 11px; color: var(--accent); background: var(--accent-dim);
+  padding: 2px 8px; border-radius: 999px; font-weight: 600;
+}
+.tpl-cat-tag.warm { color: var(--warn); background: var(--warn-dim); }
+
+/* ---------- 名词智能检索建议列表 ---------- */
+.suggest-box {
+  position: fixed; z-index: 200;
+  background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 10px;
+  box-shadow: var(--shadow); max-height: 240px; overflow-y: auto; padding: 4px;
+}
+.suggest-item {
+  padding: 9px 12px; font-size: 14px; color: var(--text); cursor: pointer;
+  border-radius: 7px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.suggest-item:hover { background: var(--accent-dim); color: var(--accent); }
+.suggest-empty { padding: 10px 12px; font-size: 13px; color: var(--text-3); }
+
+/* 动作类别下拉（热身组 / 正式组） */
+select.ex-cat-input {
+  background: var(--surface); border: 1px solid var(--border-2); border-radius: 8px;
+  padding: 4px 8px; cursor: pointer; color: var(--text-2); font-family: inherit;
+}
+select.ex-cat-input:focus { border-color: var(--accent); outline: none; }
+select.ex-cat-input option { background: var(--surface); color: var(--text); }
+
 /* ============================================================
    移动端适配
    ============================================================ */
@@ -662,6 +708,7 @@ body {
   .wo-actions { gap: 8px; }
   .history-card { flex-wrap: wrap; }
   .hc-rate { width: 100%; }
+  .tpl-list { grid-template-columns: 1fr; }
 }
 
 </style>
@@ -691,7 +738,8 @@ body {
   <!-- ===== 侧边导航（桌面） ===== -->
   <aside id="sidebar">
     <nav class="side-nav">
-      <button class="nav-item active" data-nav="plans"><span class="nav-ico">▦</span>训练计划</button>
+      <button class="nav-item active" data-nav="plans"><span class="nav-ico">▦</span>我的训练</button>
+      <button class="nav-item" data-nav="templates"><span class="nav-ico">▤</span>训练模板</button>
       <button class="nav-item" data-nav="history"><span class="nav-ico">◷</span>历史记录</button>
       <button class="nav-item" data-nav="settings"><span class="nav-ico">⚙</span>设置</button>
     </nav>
@@ -715,6 +763,15 @@ body {
       </div>
     </section>
 
+    <!-- ============ 视图：训练模板 ============ -->
+    <section id="view-templates" class="view">
+      <div class="view-head">
+        <h2 class="view-title">训练模板</h2>
+      </div>
+      <p class="settings-hint">精选基础训练模板。点击「一键应用」直接复制为你的训练计划；也可以先「查看模板」，需要调整时「编辑模板」修改后保存成自己的计划。系统模板本身不会被改动。</p>
+      <div id="template-list" class="tpl-list"></div>
+    </section>
+
     <!-- ============ 视图：计划编辑器 ============ -->
     <section id="view-editor" class="view">
       <div class="editor-head">
@@ -728,11 +785,11 @@ body {
       <div class="editor-sub">
         <label class="field">
           <span>训练目标</span>
-          <input id="plan-goal" placeholder="如：增肌 / 减脂 / 力量 / 耐力">
+          <input id="plan-goal" placeholder="如：有氧 / 无氧 / 增肌 / 减脂 / 耐力" data-suggest="goal">
         </label>
         <label class="field grow">
           <span>计划备注</span>
-          <input id="plan-note" placeholder="可选的备注说明">
+          <input id="plan-note" placeholder="如：爬坡 / 跳操 / 肩部 / 背部 / 下肢" data-suggest="note">
         </label>
         <button id="btn-add-exercise" class="btn ghost">+ 添加动作</button>
       </div>
@@ -833,7 +890,8 @@ body {
 
   <!-- ===== 底部导航（移动） ===== -->
   <nav id="bottom-nav">
-    <button class="nav-item active" data-nav="plans"><span class="nav-ico">▦</span><span>计划</span></button>
+    <button class="nav-item active" data-nav="plans"><span class="nav-ico">▦</span><span>训练</span></button>
+    <button class="nav-item" data-nav="templates"><span class="nav-ico">▤</span><span>模板</span></button>
     <button class="nav-item" data-nav="history"><span class="nav-ico">◷</span><span>历史</span></button>
     <button class="nav-item" data-nav="settings"><span class="nav-ico">⚙</span><span>设置</span></button>
   </nav>
@@ -916,6 +974,401 @@ function beep() {
     g.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.7);
     o.start(); o.stop(c.currentTime + 0.75);
   } catch (e) { /* 忽略音频错误 */ }
+}
+
+/* ============================================================
+   训练模板（系统内置，只读，用户不可直接修改）
+   ============================================================ */
+const TEMPLATES = [
+  {
+    id: 'tpl-fullbody',
+    name: '新手全身训练',
+    audience: '刚开始健身、想建立训练习惯的用户',
+    goalText: '熟悉基础力量训练',
+    desc: '覆盖全身主要肌群的入门计划，动作简单、强度适中。重量按自身能力调整，以动作标准为先。',
+    exercises: [
+      { name: '动态拉伸', category: '热身组', sets: [
+        { weight: null, reps: null, targetTime: 30, rest: null } ] },
+      { name: '开合跳', category: '热身组', sets: [
+        { weight: null, reps: null, targetTime: 30, rest: 30 },
+        { weight: null, reps: null, targetTime: 30, rest: null } ] },
+      { name: '哑铃深蹲', category: '正式组', sets: [
+        { weight: 10, reps: 10, targetTime: 20, rest: 90 },
+        { weight: 10, reps: 10, targetTime: 20, rest: 90 },
+        { weight: 10, reps: 10, targetTime: 20, rest: null } ] },
+      { name: '俯卧撑', category: '正式组', sets: [
+        { weight: null, reps: 8, targetTime: 20, rest: 90 },
+        { weight: null, reps: 8, targetTime: 20, rest: 90 },
+        { weight: null, reps: 8, targetTime: 20, rest: null } ] },
+      { name: '哑铃划船', category: '正式组', sets: [
+        { weight: 8, reps: 10, targetTime: 20, rest: 90 },
+        { weight: 8, reps: 10, targetTime: 20, rest: 90 },
+        { weight: 8, reps: 10, targetTime: 20, rest: null } ] },
+      { name: '平板支撑', category: '正式组', sets: [
+        { weight: null, reps: null, targetTime: 30, rest: 60 },
+        { weight: null, reps: null, targetTime: 30, rest: 60 },
+        { weight: null, reps: null, targetTime: 30, rest: null } ] }
+    ]
+  },
+  {
+    id: 'tpl-upper',
+    name: '新手上肢训练',
+    audience: '想重点锻炼手臂、胸、背的新手',
+    goalText: '发展上肢基础力量',
+    desc: '聚焦胸、背、肩、手臂的上肢入门计划，动作容易上手，节奏轻松。',
+    exercises: [
+      { name: '肩部环绕', category: '热身组', sets: [
+        { weight: null, reps: null, targetTime: 30, rest: null } ] },
+      { name: '哑铃卧推', category: '正式组', sets: [
+        { weight: 8, reps: 10, targetTime: 20, rest: 90 },
+        { weight: 8, reps: 10, targetTime: 20, rest: 90 },
+        { weight: 8, reps: 10, targetTime: 20, rest: null } ] },
+      { name: '坐姿划船', category: '正式组', sets: [
+        { weight: 25, reps: 12, targetTime: 20, rest: 90 },
+        { weight: 25, reps: 12, targetTime: 20, rest: 90 },
+        { weight: 25, reps: 12, targetTime: 20, rest: null } ] },
+      { name: '哑铃侧平举', category: '正式组', sets: [
+        { weight: 4, reps: 12, targetTime: 15, rest: 60 },
+        { weight: 4, reps: 12, targetTime: 15, rest: 60 },
+        { weight: 4, reps: 12, targetTime: 15, rest: null } ] },
+      { name: '哑铃弯举', category: '正式组', sets: [
+        { weight: 6, reps: 12, targetTime: 15, rest: 60 },
+        { weight: 6, reps: 12, targetTime: 15, rest: 60 },
+        { weight: 6, reps: 12, targetTime: 15, rest: null } ] },
+      { name: '绳索下压', category: '正式组', sets: [
+        { weight: 15, reps: 12, targetTime: 15, rest: 60 },
+        { weight: 15, reps: 12, targetTime: 15, rest: 60 },
+        { weight: 15, reps: 12, targetTime: 15, rest: null } ] }
+    ]
+  },
+  {
+    id: 'tpl-lower',
+    name: '新手下肢训练',
+    audience: '想加强腿部和臀部力量的新手',
+    goalText: '发展下肢基础力量',
+    desc: '以徒手和轻重量为主的腿部入门计划，动作安全易学，膝盖不适可减少蹲深。',
+    exercises: [
+      { name: '高抬腿', category: '热身组', sets: [
+        { weight: null, reps: null, targetTime: 30, rest: 30 },
+        { weight: null, reps: null, targetTime: 30, rest: null } ] },
+      { name: '徒手深蹲', category: '正式组', sets: [
+        { weight: null, reps: 15, targetTime: 30, rest: 60 },
+        { weight: null, reps: 15, targetTime: 30, rest: 60 },
+        { weight: null, reps: 15, targetTime: 30, rest: null } ] },
+      { name: '箭步蹲', category: '正式组', sets: [
+        { weight: null, reps: 12, targetTime: 30, rest: 60 },
+        { weight: null, reps: 12, targetTime: 30, rest: 60 },
+        { weight: null, reps: 12, targetTime: 30, rest: null } ] },
+      { name: '臀桥', category: '正式组', sets: [
+        { weight: null, reps: 15, targetTime: 30, rest: 60 },
+        { weight: null, reps: 15, targetTime: 30, rest: 60 },
+        { weight: null, reps: 15, targetTime: 30, rest: null } ] },
+      { name: '提踵', category: '正式组', sets: [
+        { weight: null, reps: 20, targetTime: 20, rest: 45 },
+        { weight: null, reps: 20, targetTime: 20, rest: 45 },
+        { weight: null, reps: 20, targetTime: 20, rest: null } ] },
+      { name: '仰卧举腿', category: '正式组', sets: [
+        { weight: null, reps: 12, targetTime: 20, rest: 45 },
+        { weight: null, reps: 12, targetTime: 20, rest: 45 },
+        { weight: null, reps: 12, targetTime: 20, rest: null } ] }
+    ]
+  },
+  {
+    id: 'tpl-push',
+    name: 'Push 推日',
+    audience: '有一定训练基础的健身者',
+    goalText: '强化推类动作与上肢力量',
+    desc: '经典推日模板：胸、肩、三头。先空杆热身再进入正式组，卧推注意保护。',
+    exercises: [
+      { name: '空杆卧推（热身）', category: '热身组', sets: [
+        { weight: 20, reps: 10, targetTime: 15, rest: 60 },
+        { weight: 20, reps: 10, targetTime: 15, rest: null } ] },
+      { name: '杠铃卧推', category: '正式组', sets: [
+        { weight: 40, reps: 8, targetTime: 20, rest: 120 },
+        { weight: 40, reps: 8, targetTime: 20, rest: 120 },
+        { weight: 40, reps: 8, targetTime: 20, rest: 120 },
+        { weight: 40, reps: 8, targetTime: 20, rest: null } ] },
+      { name: '上斜哑铃卧推', category: '正式组', sets: [
+        { weight: 20, reps: 10, targetTime: 20, rest: 90 },
+        { weight: 20, reps: 10, targetTime: 20, rest: 90 },
+        { weight: 20, reps: 10, targetTime: 20, rest: null } ] },
+      { name: '哑铃推举', category: '正式组', sets: [
+        { weight: 16, reps: 10, targetTime: 20, rest: 90 },
+        { weight: 16, reps: 10, targetTime: 20, rest: 90 },
+        { weight: 16, reps: 10, targetTime: 20, rest: null } ] },
+      { name: '绳索下压', category: '正式组', sets: [
+        { weight: 25, reps: 12, targetTime: 15, rest: 60 },
+        { weight: 25, reps: 12, targetTime: 15, rest: 60 },
+        { weight: 25, reps: 12, targetTime: 15, rest: null } ] },
+      { name: '哑铃侧平举', category: '正式组', sets: [
+        { weight: 6, reps: 15, targetTime: 15, rest: 60 },
+        { weight: 6, reps: 15, targetTime: 15, rest: 60 },
+        { weight: 6, reps: 15, targetTime: 15, rest: null } ] }
+    ]
+  },
+  {
+    id: 'tpl-pull',
+    name: 'Pull 拉日',
+    audience: '有一定训练基础的健身者',
+    goalText: '强化拉类动作与背部力量',
+    desc: '经典拉日模板：背、二头。注意动作全程控制，避免耸肩借力。',
+    exercises: [
+      { name: '弹力带拉伸', category: '热身组', sets: [
+        { weight: null, reps: null, targetTime: 30, rest: null } ] },
+      { name: '引体向上', category: '正式组', sets: [
+        { weight: null, reps: 6, targetTime: 25, rest: 120 },
+        { weight: null, reps: 6, targetTime: 25, rest: 120 },
+        { weight: null, reps: 6, targetTime: 25, rest: 120 },
+        { weight: null, reps: 6, targetTime: 25, rest: null } ] },
+      { name: '杠铃划船', category: '正式组', sets: [
+        { weight: 40, reps: 8, targetTime: 20, rest: 120 },
+        { weight: 40, reps: 8, targetTime: 20, rest: 120 },
+        { weight: 40, reps: 8, targetTime: 20, rest: 120 },
+        { weight: 40, reps: 8, targetTime: 20, rest: null } ] },
+      { name: '高位下拉', category: '正式组', sets: [
+        { weight: 45, reps: 12, targetTime: 20, rest: 90 },
+        { weight: 45, reps: 12, targetTime: 20, rest: 90 },
+        { weight: 45, reps: 12, targetTime: 20, rest: null } ] },
+      { name: '坐姿划船', category: '正式组', sets: [
+        { weight: 40, reps: 12, targetTime: 20, rest: 90 },
+        { weight: 40, reps: 12, targetTime: 20, rest: 90 },
+        { weight: 40, reps: 12, targetTime: 20, rest: null } ] },
+      { name: '哑铃弯举', category: '正式组', sets: [
+        { weight: 10, reps: 12, targetTime: 15, rest: 60 },
+        { weight: 10, reps: 12, targetTime: 15, rest: 60 },
+        { weight: 10, reps: 12, targetTime: 15, rest: null } ] }
+    ]
+  },
+  {
+    id: 'tpl-legs',
+    name: 'Legs 腿日',
+    audience: '有一定训练基础的健身者',
+    goalText: '强化下肢力量与围度',
+    desc: '经典腿日模板：股四头、腘绳肌、臀部。休息时间较长，保证组间充分恢复。',
+    exercises: [
+      { name: '徒手深蹲（热身）', category: '热身组', sets: [
+        { weight: null, reps: 15, targetTime: 30, rest: 60 },
+        { weight: null, reps: 15, targetTime: 30, rest: null } ] },
+      { name: '杠铃深蹲', category: '正式组', sets: [
+        { weight: 40, reps: 8, targetTime: 30, rest: 150 },
+        { weight: 40, reps: 8, targetTime: 30, rest: 150 },
+        { weight: 40, reps: 8, targetTime: 30, rest: 150 },
+        { weight: 40, reps: 8, targetTime: 30, rest: null } ] },
+      { name: '腿举', category: '正式组', sets: [
+        { weight: 80, reps: 12, targetTime: 25, rest: 120 },
+        { weight: 80, reps: 12, targetTime: 25, rest: 120 },
+        { weight: 80, reps: 12, targetTime: 25, rest: null } ] },
+      { name: '罗马尼亚硬拉', category: '正式组', sets: [
+        { weight: 30, reps: 10, targetTime: 25, rest: 120 },
+        { weight: 30, reps: 10, targetTime: 25, rest: 120 },
+        { weight: 30, reps: 10, targetTime: 25, rest: null } ] },
+      { name: '腿弯举', category: '正式组', sets: [
+        { weight: 25, reps: 12, targetTime: 20, rest: 90 },
+        { weight: 25, reps: 12, targetTime: 20, rest: 90 },
+        { weight: 25, reps: 12, targetTime: 20, rest: null } ] },
+      { name: '提踵', category: '正式组', sets: [
+        { weight: 30, reps: 20, targetTime: 20, rest: 60 },
+        { weight: 30, reps: 20, targetTime: 20, rest: 60 },
+        { weight: 30, reps: 20, targetTime: 20, rest: null } ] }
+    ]
+  }
+];
+
+/* ============================================================
+   健身名词库（智能检索词库）
+   ============================================================ */
+const TERM_LIB = {
+  exercise: [
+    '卧推', '上斜卧推', '下斜卧推', '哑铃卧推', '杠铃卧推', '上斜哑铃卧推', '下斜哑铃卧推',
+    '平板卧推', '器械卧推', '窄距卧推', '地板卧推', '俯卧撑', '上斜俯卧撑', '钻石俯卧撑',
+    '深蹲', '高脚杯深蹲', '史密斯深蹲', '前蹲', '杠铃深蹲', '哑铃深蹲', '相扑深蹲',
+    '保加利亚分腿蹲', '徒手深蹲', '跳蹲', '箭步蹲', '后撤步箭步蹲', '侧箭步蹲', '哑铃箭步蹲',
+    '硬拉', '罗马尼亚硬拉', '相扑硬拉', '直腿硬拉', '架上硬拉',
+    '高位下拉', '坐姿划船', '杠铃划船', '单臂哑铃划船', '直臂下拉', '引体向上', '反手引体向上',
+    'T杠划船', '绳索划船', '面拉', '绳索面拉', '低位划船',
+    '哑铃弯举', '杠铃弯举', '锤式弯举', '绳索弯举', '集中弯举', '牧师凳弯举', '拖拽弯举', '斜托弯举',
+    '哑铃推举', '杠铃推举', '实力推', '阿诺德推举', '颈后推举', '坐姿哑铃推举', '肩推', '直立划船',
+    '哑铃侧平举', '哑铃前平举', '反向飞鸟', '俯身飞鸟', '耸肩', '哑铃耸肩',
+    '腿举', '腿屈伸', '腿弯举', '臀桥', '杠铃臀桥', '提踵', '站姿提踵', '山羊挺身',
+    '卷腹', '仰卧起坐', '平板支撑', '侧平板支撑', '悬垂举腿', '仰卧举腿', '俄罗斯转体', '健腹轮', '死虫式',
+    '蝴蝶机夹胸', '绳索夹胸', '双杠臂屈伸',
+    '绳索下压', '仰卧臂屈伸', '碎颅者', '窄距俯卧撑',
+    '开合跳', '高抬腿', '波比跳', '深蹲跳', '登山跑', '跳绳', '划船机', '椭圆机', '跑步机', '爬坡', '快走', '慢跑',
+    '动态拉伸', '静态拉伸', '肩部环绕', '手臂环绕', '髋部环绕', '泡沫轴放松', '弹力带拉伸',
+    '壶铃摆动', '壶铃高翻', '药球砸地', '战绳', '农夫行走', '弹力带划船', '弹力带深蹲',
+    '瑜伽', '普拉提', '游泳', '骑行', '爬楼梯', '波速球训练'
+  ],
+  goal: [
+    '增肌', '增肌训练', '肌肉增长', '力量与增肌', '瘦体重增长', '增重',
+    '减脂', '减脂训练', '体脂下降', '燃脂', '热量赤字', '体重管理',
+    '力量训练', '力量提升', '最大力量', '力量举', '爆发力', '速度训练',
+    '耐力训练', '耐力提升', '心肺耐力', '有氧耐力', '体能训练', '体能提升',
+    '塑形', '线条雕刻', '紧致', '形体塑造', '代谢提升', '核心强化',
+    '柔韧性', '灵活性', '活动度', '体态纠正', '姿态改善', '康复训练', '复健',
+    '新手入门', '保持健康', '健康生活', '功能性训练', '敏捷训练'
+  ],
+  note: [
+    '新手', '新手训练', '新手入门', '初学者', '进阶',
+    '胸部训练', '胸肌训练', '胸肩训练', '背部训练', '背阔肌训练', '下肢训练', '腿部训练',
+    '上肢训练', '全身训练', '臀部训练', '肩部训练', '核心训练', '腹部训练', '手臂训练',
+    '二头肌训练', '三头肌训练', '小腿训练', '胸', '背', '腿', '肩', '臀', '手臂', '腹',
+    '热身', '热身组', '正式组', '放松', '拉伸', '冷身',
+    '高强度', '中等强度', '低强度', '渐进负荷', '递增组', '递减组', '超级组', '金字塔组', '循环训练',
+    '组间休息', '力竭', 'RPE', 'HIIT', '间歇训练', '有氧', '无氧',
+    '爬坡', '跳操', '塑形', '增肌', '减脂', '增力', '体能', '康复', '核心', '上肢', '下肢', '全身'
+  ]
+};
+
+/* 名词智能检索：输入即搜索，包含匹配，点击填入 */
+let suggestBox = null;
+function getSuggestBox() {
+  if (!suggestBox) {
+    suggestBox = document.createElement('div');
+    suggestBox.className = 'suggest-box';
+    suggestBox.style.display = 'none';
+    document.body.appendChild(suggestBox);
+  }
+  return suggestBox;
+}
+function hideSuggest() {
+  if (suggestBox) suggestBox.style.display = 'none';
+}
+function initSuggestFor(input, type) {
+  const terms = TERM_LIB[type] || [];
+  input.setAttribute('autocomplete', 'off');
+  input.addEventListener('input', () => {
+    if (input.dataset.sup) { delete input.dataset.sup; hideSuggest(); return; }
+    const q = input.value.trim();
+    const box = getSuggestBox();
+    if (!q) { hideSuggest(); return; }
+    const matches = terms.filter(t => t.includes(q)).slice(0, 8);
+    if (!matches.length) {
+      box.innerHTML = '<div class="suggest-empty">没有找到相关名词</div>';
+    } else {
+      box.innerHTML = matches.map(m => `<div class="suggest-item">${esc(m)}</div>`).join('');
+      box.querySelectorAll('.suggest-item').forEach(el => {
+        const pick = ev => {
+          ev.preventDefault();
+          input.value = el.textContent;
+          input.dataset.sup = '1';
+          input.dispatchEvent(new Event('input', { bubbles: true }));
+          hideSuggest();
+        };
+        el.addEventListener('mousedown', pick);
+        el.addEventListener('touchstart', pick, { passive: false });
+      });
+    }
+    const r = input.getBoundingClientRect();
+    box.style.left = Math.max(4, r.left) + 'px';
+    box.style.top = (r.bottom + 4) + 'px';
+    box.style.width = Math.max(200, r.width) + 'px';
+    box.style.display = 'block';
+  });
+  input.addEventListener('blur', () => setTimeout(hideSuggest, 120));
+}
+document.addEventListener('click', e => {
+  if (suggestBox && suggestBox.style.display !== 'none' && !suggestBox.contains(e.target)) hideSuggest();
+});
+window.addEventListener('scroll', hideSuggest, { passive: true });
+window.addEventListener('resize', hideSuggest);
+function initDynamicSuggest() {
+  document.querySelectorAll('#exercise-list .ex-name-input[data-suggest]').forEach(el => initSuggestFor(el, 'exercise'));
+}
+
+/* 模板操作：复制 / 查看 / 一键应用 / 编辑 */
+function cloneTemplate(tpl) {
+  const plan = {
+    id: uid(),
+    name: tpl.name,
+    goal: tpl.goalText || '',
+    note: tpl.desc || '',
+    exercises: JSON.parse(JSON.stringify(tpl.exercises || []))
+  };
+  plan.exercises.forEach(e => { e.id = uid(); e.sets.forEach(s => s.id = uid()); });
+  return plan;
+}
+function renderTemplates() {
+  const wrap = $('#template-list');
+  wrap.innerHTML = '';
+  TEMPLATES.forEach(tpl => {
+    const est = calcPlanEstimate(tpl);
+    const estText = est.totalSets > 0 ? fmtDuration(est.totalSec) : '—';
+    const card = document.createElement('div');
+    card.className = 'tpl-card';
+    card.dataset.tpl = tpl.id;
+    card.innerHTML = `
+      <div class="tpl-name">${esc(tpl.name)}</div>
+      <div class="tpl-meta">
+        <span>适合：<b>${esc(tpl.audience)}</b></span>
+        <span>目标：<b>${esc(tpl.goalText)}</b></span>
+      </div>
+      <div class="tpl-stats">
+        <span class="tpl-stat">${tpl.exercises.length} 个动作</span>
+        <span class="tpl-stat">约 ${estText}</span>
+      </div>
+      <div class="tpl-desc">${esc(tpl.desc)}</div>
+      <div class="tpl-btns">
+        <button class="btn ghost small" data-act="view">查看模板</button>
+        <button class="btn accent small" data-act="apply">一键应用</button>
+      </div>`;
+    wrap.appendChild(card);
+  });
+}
+function showTemplateDetail(tplId) {
+  const tpl = TEMPLATES.find(t => t.id === tplId);
+  if (!tpl) return;
+  const est = calcPlanEstimate(tpl);
+  const exHTML = tpl.exercises.map((ex, i) => {
+    const rows = ex.sets.map((s, si) => {
+      const wu = s.wunit || 'kg';
+      const w = s.weight != null ? fmtNum(dispWeight(s.weight, wu)) + unitLabel(wu) : '自重';
+      const r = s.reps != null ? s.reps + ' 次'
+        : (s.targetTime != null ? fmtNum(dispTime(s.targetTime, 's')) + ' 秒' : '—');
+      const rest = s.rest != null ? ' · 休 ' + fmtNum(dispTime(s.rest, 's')) + ' 秒' : '';
+      return `第${si + 1}组 ${w} × ${r}${rest}`;
+    }).join('<br>');
+    const isWarm = ex.category === '热身组';
+    return `<div style="padding:10px 0;border-bottom:1px dashed var(--border)">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+        <b>${i + 1}. ${esc(ex.name)}</b>
+        <span class="tpl-cat-tag ${isWarm ? 'warm' : ''}">${isWarm ? '热身组' : '正式组'}</span>
+        <span style="color:var(--text-3);font-size:12px">${ex.sets.length} 组</span>
+      </div>
+      <div style="font-family:var(--font-num);font-size:12px;color:var(--text-2);margin-top:6px;line-height:1.9">${rows}</div>
+    </div>`;
+  }).join('');
+  openModal('模板：' + tpl.name, `
+    <div style="color:var(--text-2);font-size:13px;line-height:1.8;margin-bottom:10px">
+      <div>适合：<b>${esc(tpl.audience)}</b></div>
+      <div>目标：<b>${esc(tpl.goalText)}</b></div>
+      <div style="color:var(--text-3);font-size:12px;margin-top:4px">${tpl.exercises.length} 个动作 · 约 ${fmtDuration(est.totalSec)}</div>
+    </div>
+    ${exHTML}
+    <div style="font-size:12px;color:var(--text-3);margin-top:12px;line-height:1.7">「一键应用」直接复制为你的训练计划；「编辑模板」可修改动作 / 重量 / 次数 / 时间后保存为自己的计划，模板本身不会被改动。</div>`, [
+    { label: '关闭', cls: 'ghost', fn: closeModal },
+    { label: '编辑模板', cls: 'primary', fn: () => { closeModal(); editTemplate(tplId); } },
+    { label: '一键应用', cls: 'accent', fn: () => { closeModal(); applyTemplate(tplId); } }
+  ]);
+}
+function applyTemplate(tplId) {
+  const tpl = TEMPLATES.find(t => t.id === tplId);
+  if (!tpl) return;
+  const plan = cloneTemplate(tpl);
+  state.plans.push(plan);
+  save();
+  renderPlans();
+  openEditor(plan.id);
+  toast('已应用「' + tpl.name + '」到你的训练计划');
+}
+function editTemplate(tplId) {
+  const tpl = TEMPLATES.find(t => t.id === tplId);
+  if (!tpl) return;
+  const plan = cloneTemplate(tpl);
+  state.plans.push(plan);
+  save();
+  renderPlans();
+  openEditor(plan.id, false, 'template');
+  toast('已复制「' + tpl.name + '」，修改后保存即成为你的计划');
 }
 
 /* ---------------- 数据层 ---------------- */
@@ -1039,15 +1492,18 @@ function renderPlans() {
 let editingPlanId = null;
 let editingFromWorkout = false;   // 是否从训练中进入编辑器
 let workoutReturnPhase = null;    // 进入编辑器前训练所处的阶段
-function openEditor(planId, fromWorkout) {
+let editorMode = '';              // '' | 'template'（模板副本编辑模式）
+function openEditor(planId, fromWorkout, mode) {
   editingPlanId = planId;
   editingFromWorkout = !!fromWorkout;
+  editorMode = mode || '';
   const p = state.plans.find(x => x.id === planId);
   if (!p) return;
   showView('editor');
   $('#plan-name').value = p.name;
   $('#plan-goal').value = p.goal || p.category || '';
   $('#plan-note').value = p.note || '';
+  $('#btn-save-plan').textContent = editorMode === 'template' ? '保存为我的训练计划' : '保存';
   const startBtn = $('#btn-start-plan');
   startBtn.textContent = editingFromWorkout ? '返回训练' : '开始训练';
   startBtn.classList.toggle('accent', !editingFromWorkout);
@@ -1090,6 +1546,7 @@ function renderExerciseList(p, focusSetId) {
     wrap.appendChild(card);
   });
   updateEditorSummary(p);
+  initDynamicSuggest();
   if (focusSetId) {
     const el = wrap.querySelector(`.set-block[data-setid="${focusSetId}"]`);
     if (el) setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'center' }), 30);
@@ -1119,9 +1576,12 @@ function cardBodyHTML(ex, i, total) {
     <div class="ex-body">
       <div class="ex-body-inner">
       <div class="ex-head-edit">
-        <input class="ex-name-input" value="${esc(ex.name)}" placeholder="动作名称" data-f="name">
+        <input class="ex-name-input" value="${esc(ex.name)}" placeholder="动作名称" data-f="name" data-suggest="exercise">
         <div class="ex-cat-note">
-          <input class="ex-cat-input" value="${esc(ex.category || '')}" placeholder="类别(可选)" data-f="category">
+          <select class="ex-cat-input" data-f="category" title="动作类别">
+            <option value="热身组" ${ex.category === '热身组' ? 'selected' : ''}>热身组</option>
+            <option value="正式组" ${ex.category === '正式组' || ex.category !== '热身组' ? 'selected' : ''}>正式组</option>
+          </select>
           <input class="ex-note-input" value="${esc(ex.note || '')}" placeholder="备注(可选)" data-f="note">
         </div>
         <div class="ex-actions">
@@ -1475,7 +1935,7 @@ function renderWorkoutScreen() {
         <span class="wo-ex-name">${esc(ex.name)}</span>
         <span class="wo-set-count">第 ${s.si + 1} / ${ex.sets.length} 组</span>
       </div>
-      ${ex.category ? `<div class="wo-ex-cat">${esc(ex.category)}</div>` : ''}
+      <div class="wo-ex-cat">${ex.category === '热身组' ? '热身组' : '正式组'}</div>
       <div class="wo-set-main">${curW} × ${act && act.reps != null ? act.reps : '—'}</div>`;
   const timersBox = (curClass, showTarget) => `
       <div class="wo-timers">
@@ -1935,9 +2395,24 @@ function bindEvents() {
     n.onclick = () => {
       const name = n.dataset.nav;
       if (name === 'plans') { showView('plans'); renderPlans(); }
+      else if (name === 'templates') { showView('templates'); renderTemplates(); }
       else if (name === 'history') { showView('history'); renderHistory(); }
       else if (name === 'settings') { showView('settings'); renderSettings(); }
     };
+  });
+
+  // 名词智能检索（训练目标 / 计划备注）
+  $$('[data-suggest]').forEach(el => initSuggestFor(el, el.dataset.suggest));
+
+  // 训练模板列表
+  $('#template-list').addEventListener('click', e => {
+    const card = e.target.closest('.tpl-card');
+    if (!card) return;
+    const tplId = card.dataset.tpl;
+    const btn = e.target.closest('[data-act]');
+    if (!btn) { showTemplateDetail(tplId); return; }
+    if (btn.dataset.act === 'view') showTemplateDetail(tplId);
+    else if (btn.dataset.act === 'apply') applyTemplate(tplId);
   });
 
   // 计划列表
@@ -1960,7 +2435,15 @@ function bindEvents() {
 
   // 编辑器
   $('#btn-add-exercise').onclick = addExercise;
-  $('#btn-save-plan').onclick = saveEditor;
+  $('#btn-save-plan').onclick = () => {
+    saveEditor();
+    if (editorMode === 'template') {
+      editorMode = '';
+      showView('plans');
+      renderPlans();
+      toast('已保存为我的训练计划');
+    }
+  };
   $('#btn-del-plan').onclick = () => {
     const p = curPlan();
     confirmModal(`删除计划「${p.name}」？`, () => {
@@ -2039,6 +2522,16 @@ function bindEvents() {
 
   // 组内单位切换：仅改变该输入框的显示单位，内部数据仍存基础单位
   $('#exercise-list').addEventListener('change', e => {
+    const catSel = e.target.closest('.ex-cat-input');
+    if (catSel) {
+      const p = curPlan();
+      if (p) {
+        const card = catSel.closest('.exercise-card');
+        const ex = p.exercises.find(x => x.id === card.dataset.exid);
+        if (ex) { ex.category = catSel.value; save(); }
+      }
+      return;
+    }
     const sel = e.target.closest('.sb-unit');
     if (!sel) return;
     const p = curPlan();
@@ -2209,6 +2702,7 @@ function boot() {
   load();
   bindEvents();
   renderPlans();
+  renderTemplates();
   renderHistory();
   renderSettings();
   restoreSession();
