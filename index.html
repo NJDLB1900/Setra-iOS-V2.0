@@ -189,8 +189,30 @@ body {
 .pc-stat .stat-ico { color: var(--accent); font-style: normal; opacity: .8; }
 .pc-last { font-size: 12px; color: var(--text-3); }
 .pc-last span { color: var(--text-2); }
-.pc-buttons { display: flex; align-items: center; gap: 8px; margin-top: auto; padding-top: 2px; }
-.pc-buttons .btn.big { flex: 1; }
+.pc-buttons {
+  display: flex; flex-direction: column; gap: 8px;
+  width: 100%; min-width: 0; max-width: 100%;
+  margin-top: auto; padding-top: 2px; box-sizing: border-box; overflow: hidden;
+}
+/* 第一行：使用模板，始终独占整行 */
+.pc-primary-action { width: 100%; min-width: 0; }
+.pc-primary-action .btn.big {
+  width: 100%; min-width: 0; max-width: 100%;
+  flex: none; box-sizing: border-box;
+}
+/* 第二行：编辑 / 复制 / 导出 / 删除，flex 等宽分布，空间不足自动换行 */
+.pc-secondary-actions {
+  display: flex; flex-wrap: wrap;
+  gap: 8px; width: 100%; min-width: 0; max-width: 100%; box-sizing: border-box;
+}
+.pc-secondary-actions .btn {
+  flex: 1; min-width: 0; max-width: 100%; box-sizing: border-box;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.pc-export {
+  border-color: var(--accent); color: var(--accent); background: var(--accent-dim);
+}
+.pc-export:hover { background: var(--accent); color: #06240f; border-color: var(--accent); }
 .pc-icon {
   width: 40px; height: 40px; padding: 0; flex-shrink: 0; font-size: 16px;
   display: inline-flex; align-items: center; justify-content: center;
@@ -659,6 +681,44 @@ select.ex-cat-input {
 select.ex-cat-input:focus { border-color: var(--accent); outline: none; }
 select.ex-cat-input option { background: var(--surface); color: var(--text); }
 
+/* ---------- 训练模板页：区块标题 ---------- */
+.tpl-section-title {
+  font-size: 15px; font-weight: 700; color: var(--text); margin: 24px 0 12px;
+  display: flex; align-items: center; gap: 8px;
+}
+.tpl-section-title::before {
+  content: ''; width: 4px; height: 16px; border-radius: 2px; background: var(--accent);
+}
+
+/* ---------- 模板分享：导入 / 导出弹窗 ---------- */
+.share-hint { font-size: 13px; color: var(--text-3); line-height: 1.7; margin-bottom: 10px; }
+.share-input {
+  width: 100%; min-height: 100px; padding: 12px; resize: vertical;
+  background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 10px;
+  color: var(--text); font-size: 13px; line-height: 1.7; outline: none;
+  font-family: var(--font-num); word-break: break-all;
+}
+.share-input:focus { border-color: var(--accent); }
+.share-btn-row { display: flex; gap: 10px; margin-top: 12px; }
+.share-btn-row .btn { flex: 1; }
+.share-pv-name { font-size: 18px; font-weight: 800; line-height: 1.35; }
+.share-pv-goal { font-size: 13px; color: var(--accent); margin-top: 4px; }
+.share-pv-meta { font-size: 12px; color: var(--text-3); margin-top: 6px; font-family: var(--font-num); }
+.share-pv-note { font-size: 13px; color: var(--text-2); margin-top: 8px; line-height: 1.7; }
+.share-pv-ex {
+  margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border);
+  font-size: 13px; color: var(--text-2); line-height: 2.1;
+}
+.share-code-label { font-size: 13px; font-weight: 700; color: var(--text-2); margin: 16px 0 6px; }
+.share-code-area {
+  width: 100%; min-height: 110px; padding: 12px; resize: vertical;
+  background: var(--surface-2); border: 1px solid var(--border-2); border-radius: 10px;
+  color: var(--text); font-size: 12px; line-height: 1.7; outline: none;
+  font-family: var(--font-num); word-break: break-all;
+}
+.share-copy-btn { width: 100%; margin-top: 10px; }
+.share-copy-hint { font-size: 12px; color: var(--text-3); margin-top: 8px; text-align: center; }
+
 /* ============================================================
    移动端适配
    ============================================================ */
@@ -682,9 +742,6 @@ select.ex-cat-input option { background: var(--surface); color: var(--text); }
   .view-head { margin-bottom: 14px; }
   .view-title { font-size: 20px; }
   .plan-list { grid-template-columns: 1fr; }
-  .pc-buttons { flex-wrap: wrap; }
-  .pc-buttons .btn.big { min-width: 100%; }
-  .pc-icon { flex: 1; width: auto; }
   .editor-head { flex-direction: column; align-items: stretch; gap: 12px; }
   .editor-head-actions { flex-wrap: wrap; }
   .editor-name { font-size: 20px; }
@@ -776,9 +833,18 @@ select.ex-cat-input option { background: var(--surface); color: var(--text); }
     <section id="view-templates" class="view">
       <div class="view-head">
         <h2 class="view-title">训练模板</h2>
+        <button id="btn-import-template" class="btn primary">＋ 导入模板</button>
       </div>
-      <p class="settings-hint">精选基础训练模板。点击「一键应用」直接复制为你的训练计划；也可以先「查看模板」，需要调整时「编辑模板」修改后保存成自己的计划。系统模板本身不会被改动。</p>
+      <p class="settings-hint">精选基础训练模板，点击「一键应用」直接复制为你的训练计划，系统模板本身不会被改动。你保存过的计划会出现在「我的模板」中：可以导出成分享代码发给朋友，也可以粘贴朋友的代码导入模板。</p>
+      <h3 class="tpl-section-title">系统模板</h3>
       <div id="template-list" class="tpl-list"></div>
+      <h3 class="tpl-section-title">我的模板</h3>
+      <div id="my-template-list" class="plan-list"></div>
+      <div id="my-template-empty" class="empty-state" hidden>
+        <div class="empty-ico">▤</div>
+        <p>还没有自己的模板。可以从系统模板「一键应用」，或点击上方「导入模板」接收朋友分享的模板。</p>
+        <button class="btn primary" id="btn-import-template-2">＋ 导入模板</button>
+      </div>
     </section>
 
     <!-- ============ 视图：计划编辑器 ============ -->
@@ -1322,6 +1388,7 @@ function renderTemplates() {
       </div>`;
     wrap.appendChild(card);
   });
+  renderMyTemplates();
 }
 function showTemplateDetail(tplId) {
   const tpl = TEMPLATES.find(t => t.id === tplId);
@@ -1378,6 +1445,349 @@ function editTemplate(tplId) {
   renderPlans();
   openEditor(plan.id, false, 'template');
   toast('已复制「' + tpl.name + '」，修改后保存即成为你的计划');
+}
+
+/* ============================================================
+   训练模板 导入 / 导出 / 分享
+   ============================================================ */
+/* ==== 模板分享编解码核心（纯数据，无 DOM 依赖，可独立测试） ==== */
+const SHARE_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+const SHARE_CHAR_IDX = (() => { const o = {}; for (let i = 0; i < SHARE_CHARS.length; i++) o[SHARE_CHARS[i]] = i; return o; })();
+const SHARE_VERSION = 1;      // 分享格式内部版本号（编码后不可见）
+const SHARE_CHECK_LEN = 6;    // 校验信息长度（字符）
+const SHARE_MAX_LEN = 20000;  // 分享代码最大长度
+function shareUid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+function shareNumToB62(n, pad) {
+  let s = '';
+  let v = Math.floor(n);
+  for (let k = 0; k < pad; k++) { s = SHARE_CHARS[v % 62] + s; v = Math.floor(v / 62); }
+  return s;
+}
+function shareB62ToNum(s) {
+  let v = 0;
+  for (let k = 0; k < s.length; k++) {
+    const d = SHARE_CHAR_IDX[s[k]];
+    if (d === undefined) return null;
+    v = v * 62 + d;
+  }
+  return v;
+}
+// 字节流 → Base62 字符串（每 4 字节 → 6 字符；不足 4 字节按 1→2 / 2→3 / 3→5 字符）
+function b62EncodeBytes(bytes) {
+  let out = '';
+  let i = 0;
+  for (; i + 4 <= bytes.length; i += 4) {
+    const v = ((bytes[i] * 256 + bytes[i + 1]) * 256 + bytes[i + 2]) * 256 + bytes[i + 3];
+    out += shareNumToB62(v, 6);
+  }
+  const rest = bytes.length - i;
+  if (rest > 0) {
+    let v = 0;
+    for (let k = 0; k < rest; k++) v = v * 256 + bytes[i + k];
+    out += shareNumToB62(v, rest === 1 ? 2 : rest === 2 ? 3 : 5);
+  }
+  return out;
+}
+// Base62 字符串 → 字节流（长度非法返回 null）
+function b62Decode(str) {
+  const L = str.length;
+  if (!L) return null;
+  const full = Math.floor(L / 6);
+  const rem = L % 6;
+  const lastBytes = rem === 0 ? 0 : rem === 2 ? 1 : rem === 3 ? 2 : rem === 5 ? 3 : -1;
+  if (lastBytes < 0) return null;
+  const bytes = [];
+  let pos = 0;
+  for (let k = 0; k < full; k++) {
+    const v = shareB62ToNum(str.slice(pos, pos + 6));
+    if (v === null) return null;
+    pos += 6;
+    bytes.push((v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255);
+  }
+  if (lastBytes > 0) {
+    const lc = lastBytes === 1 ? 2 : lastBytes === 2 ? 3 : 5;
+    const v = shareB62ToNum(str.slice(pos, pos + lc));
+    if (v === null) return null;
+    if (lastBytes === 1) bytes.push(v & 255);
+    else if (lastBytes === 2) bytes.push((v >>> 8) & 255, v & 255);
+    else bytes.push((v >>> 16) & 255, (v >>> 8) & 255, v & 255);
+  }
+  return bytes;
+}
+// FNV-1a 32 位哈希，用于完整性校验
+function shareFnv1a(bytes) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < bytes.length; i++) { h ^= bytes[i]; h = Math.imul(h, 0x01000193); }
+  return h >>> 0;
+}
+function shareNumOrNull(v) { return (typeof v === 'number' && isFinite(v)) ? v : null; }
+// 训练计划 → 分享代码（纯字母数字）
+function encodeSharePlan(plan) {
+  const data = {
+    v: SHARE_VERSION,
+    n: String(plan.name || ''),
+    g: String(plan.goal || ''),
+    d: String(plan.note || ''),
+    e: (plan.exercises || []).map(ex => ({
+      n: String(ex.name || ''),
+      c: ex.category === '热身组' ? 1 : 0,
+      o: String(ex.note || ''),
+      s: (ex.sets || []).map(st => {
+        const arr = [shareNumOrNull(st.weight), shareNumOrNull(st.reps), shareNumOrNull(st.targetTime), shareNumOrNull(st.rest)];
+        if (st.wunit) arr.push(st.wunit);
+        if (st.tunit) arr.push(st.tunit);
+        if (st.runit) arr.push(st.runit);
+        return arr;
+      })
+    }))
+  };
+  const bytes = Array.from(new TextEncoder().encode(JSON.stringify(data)));
+  return b62EncodeBytes(bytes) + shareNumToB62(shareFnv1a(bytes), SHARE_CHECK_LEN);
+}
+// 分享代码 → 训练计划（严格验证，返回 { ok, msg?, plan? }）
+function decodeShareCode(raw) {
+  const code = String(raw || '').trim();
+  if (!code) return { ok: false, msg: '请输入模板代码。' };
+  if (code.length < SHARE_CHECK_LEN + 1) return { ok: false, msg: '模板代码无效或已损坏。' };
+  if (!/^[A-Za-z0-9]+$/.test(code)) return { ok: false, msg: '模板代码格式无效，请重新复制完整代码。' };
+  if (code.length > SHARE_MAX_LEN) return { ok: false, msg: '模板代码过长，可能不完整或已损坏。' };
+  const bytes = b62Decode(code.slice(0, -SHARE_CHECK_LEN));
+  if (!bytes) return { ok: false, msg: '无法读取模板代码，请确认代码完整。' };
+  if (shareNumToB62(shareFnv1a(bytes), SHARE_CHECK_LEN) !== code.slice(-SHARE_CHECK_LEN)) return { ok: false, msg: '模板代码已损坏，请重新复制。' };
+  let text;
+  try { text = new TextDecoder().decode(new Uint8Array(bytes)); }
+  catch (e) { return { ok: false, msg: '无法读取模板代码，请确认代码完整。' }; }
+  let data;
+  try { data = JSON.parse(text); }
+  catch (e) { return { ok: false, msg: '模板数据无效或已损坏。' }; }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return { ok: false, msg: '模板数据不完整，无法导入。' };
+  if (typeof data.v !== 'number' || data.v > SHARE_VERSION) return { ok: false, msg: '此模板需要更新版本的 Setra 才能导入。' };
+  if (data.v !== SHARE_VERSION) return { ok: false, msg: '模板数据不完整，无法导入。' };
+  const plan = buildPlanFromShare(data);
+  if (!plan) return { ok: false, msg: '模板数据不完整，无法导入。' };
+  return { ok: true, plan };
+}
+// 将分享数据还原为训练计划（对字段类型 / 数量 / 数值范围 / 枚举做严格校验）
+function buildPlanFromShare(data) {
+  const str = (v, max) => (typeof v === 'string' ? v : '').slice(0, max);
+  const name = str(data.n, 100).trim();
+  if (!name) return null;
+  if (!Array.isArray(data.e) || data.e.length < 1 || data.e.length > 50) return null;
+  const exercises = [];
+  for (const ex of data.e) {
+    if (!ex || typeof ex !== 'object' || Array.isArray(ex)) return null;
+    const exName = str(ex.n, 100).trim();
+    if (!exName) return null;
+    if (ex.c !== undefined && ex.c !== 0 && ex.c !== 1) return null;
+    if (!Array.isArray(ex.s) || ex.s.length < 1 || ex.s.length > 30) return null;
+    const sets = [];
+    for (const st of ex.s) {
+      if (!Array.isArray(st) || st.length < 4 || st.length > 7) return null;
+      const val = (v, max) => {
+        if (v === null || v === undefined) return null;
+        if (typeof v !== 'number' || !isFinite(v) || v < 0 || v > max) return 'BAD';
+        return v;
+      };
+      const weight = val(st[0], 2000);
+      const reps = val(st[1], 1000);
+      const targetTime = val(st[2], 7200);
+      const rest = val(st[3], 7200);
+      if (weight === 'BAD' || reps === 'BAD' || targetTime === 'BAD' || rest === 'BAD') return null;
+      const set = { id: shareUid(), weight, reps, targetTime, rest };
+      if (st.length > 4 && st[4] !== null && st[4] !== undefined) {
+        if (st[4] !== 'kg' && st[4] !== 'lb') return null;
+        set.wunit = st[4];
+      }
+      if (st.length > 5 && st[5] !== null && st[5] !== undefined) {
+        if (st[5] !== 's' && st[5] !== 'min') return null;
+        set.tunit = st[5];
+      }
+      if (st.length > 6 && st[6] !== null && st[6] !== undefined) {
+        if (st[6] !== 's' && st[6] !== 'min') return null;
+        set.runit = st[6];
+      }
+      sets.push(set);
+    }
+    exercises.push({ id: shareUid(), name: exName, category: ex.c === 1 ? '热身组' : '正式组', note: str(ex.o, 300), sets });
+  }
+  return { id: shareUid(), name, goal: str(data.g, 300), note: str(data.d, 500), exercises };
+}
+/* ==== 模板分享编解码核心结束 ==== */
+
+/* 渲染「我的模板」列表（复用计划卡片，含导出按钮） */
+function renderMyTemplates() {
+  const list = $('#my-template-list');
+  const empty = $('#my-template-empty');
+  if (!list) return;
+  list.innerHTML = '';
+  if (!state.plans.length) {
+    list.style.display = 'none';
+    if (empty) empty.hidden = false;
+    return;
+  }
+  if (empty) empty.hidden = true;
+  list.style.display = 'grid';
+  state.plans.forEach(p => {
+    const exCount = p.exercises.length;
+    const setCount = p.exercises.reduce((a, e) => a + e.sets.length, 0);
+    const est = calcPlanEstimate(p);
+    const estText = est.totalSets > 0 ? (est.hasTarget ? fmtDuration(est.totalSec) : '未填时长') : '—';
+    const goal = p.goal || '';
+    const card = document.createElement('div');
+    card.className = 'plan-card';
+    card.dataset.pid = p.id;
+    card.innerHTML = `
+      <div class="pc-top">
+        <div class="pc-name">${esc(p.name)}</div>
+        ${goal ? `<span class="pc-goal">${esc(goal)}</span>` : ''}
+      </div>
+      <div class="pc-stats">
+        <div class="pc-stat"><i class="stat-ico">▤</i><b>${exCount}</b> 动作</div>
+        <div class="pc-stat"><i class="stat-ico">▦</i><b>${setCount}</b> 组</div>
+        <div class="pc-stat"><i class="stat-ico">◷</i>${estText}</div>
+      </div>
+      <div class="pc-buttons">
+        <div class="pc-primary-action">
+          <button class="btn accent big" data-act="start">使用模板</button>
+        </div>
+        <div class="pc-secondary-actions">
+          <button class="btn ghost small" data-act="edit" title="编辑">编辑</button>
+          <button class="btn ghost small" data-act="dup" title="复制">复制</button>
+          <button class="btn ghost small pc-export" data-act="export" title="导出模板">导出</button>
+          <button class="btn ghost small danger" data-act="del" title="删除">删除</button>
+        </div>
+      </div>`;
+    list.appendChild(card);
+  });
+}
+
+/* 导出模板：生成分享代码并打开导出弹窗 */
+function exportTemplate(planId) {
+  const p = state.plans.find(x => x.id === planId);
+  if (!p) return;
+  const code = encodeSharePlan(p);
+  if (code.length > SHARE_MAX_LEN) { toast('模板内容过多，请减少动作或训练组后再导出。'); return; }
+  showExportModal(p, code);
+}
+function showExportModal(p, code) {
+  const est = calcPlanEstimate(p);
+  const estText = est.totalSets > 0 ? (est.hasTarget ? fmtDuration(est.totalSec) : '未填时长') : '—';
+  openModal('导出训练模板', `
+    <div class="share-preview">
+      <div class="share-pv-name">${esc(p.name)}</div>
+      ${p.goal ? `<div class="share-pv-goal">训练目标：${esc(p.goal)}</div>` : ''}
+      <div class="share-pv-meta">${p.exercises.length} 个动作 · ${est.totalSets} 组 · 预计 ${estText}</div>
+    </div>
+    <div class="share-code-label">模板分享代码</div>
+    <textarea id="share-code-area" class="share-code-area" readonly spellcheck="false" onclick="this.select()">${code}</textarea>
+    <button id="btn-copy-code" class="btn accent share-copy-btn">复制代码</button>
+    <div class="share-copy-hint">复制后可以发送给其他 Setra 用户</div>
+  `, [{ label: '关闭', cls: 'ghost', fn: closeModal }]);
+  $('#btn-copy-code').onclick = () => copyShareCode(code);
+}
+function copyShareCode(code) {
+  const done = () => toast('✓ 模板代码已复制');
+  const fail = () => toast('无法自动复制，请手动复制代码。');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(code).then(done).catch(() => { if (!legacyCopy(code)) fail(); });
+  } else if (!legacyCopy(code)) { fail(); }
+}
+function legacyCopy(code) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = code;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:-9999px;opacity:0;pointer-events:none';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    if (ok) toast('✓ 模板代码已复制');
+    return ok;
+  } catch (e) { return false; }
+}
+
+/* 导入模板：打开导入弹窗 */
+function openImportModal() {
+  openModal('导入训练模板', `
+    <div class="share-hint">请粘贴其他 Setra 用户分享的模板代码。</div>
+    <textarea id="share-input" class="share-input" placeholder="在这里粘贴模板代码" rows="4" spellcheck="false"></textarea>
+    <div class="share-btn-row">
+      <button id="btn-share-paste" class="btn ghost">粘贴</button>
+      <button id="btn-share-import" class="btn accent" disabled>导入模板</button>
+    </div>
+    <div class="share-hint" style="margin-top:10px">也可以直接使用 Ctrl+V / Cmd+V 粘贴代码。</div>
+  `, [{ label: '取消', cls: 'ghost', fn: closeModal }]);
+  const inp = $('#share-input'), btn = $('#btn-share-import'), paste = $('#btn-share-paste');
+  const refresh = () => { btn.disabled = !inp.value.trim(); };
+  inp.addEventListener('input', refresh);
+  inp.addEventListener('paste', () => setTimeout(refresh, 0));
+  btn.onclick = () => handleImportCode();
+  paste.onclick = async () => {
+    try {
+      if (navigator.clipboard && navigator.clipboard.readText) {
+        const txt = await navigator.clipboard.readText();
+        if (txt) { inp.value = txt; refresh(); }
+      }
+    } catch (e) { /* 浏览器不允许读取剪贴板时静默，允许用户手动粘贴 */ }
+  };
+  setTimeout(() => { try { inp.focus(); } catch (e) {} }, 60);
+}
+function handleImportCode() {
+  const inp = $('#share-input');
+  const res = decodeShareCode(inp ? inp.value : '');
+  if (!res.ok) { toast(res.msg); return; }
+  closeModal();
+  showImportPreview(res.plan);
+}
+
+/* 导入成功 → 显示模板预览，用户确认后才加入 */
+function showImportPreview(plan) {
+  const est = calcPlanEstimate(plan);
+  const estText = est.totalSets > 0 ? fmtDuration(est.totalSec) : '—';
+  const exHTML = plan.exercises.map((ex, i) =>
+    `<div>${i + 1}. ${esc(ex.name)}${ex.category === '热身组' ? ' <span class="tpl-cat-tag warm">热身组</span>' : ''}</div>`).join('');
+  openModal('发现训练模板', `
+    <div class="share-preview">
+      <div class="share-pv-name">${esc(plan.name)}</div>
+      ${plan.goal ? `<div class="share-pv-goal">训练目标：${esc(plan.goal)}</div>` : ''}
+      <div class="share-pv-meta">${plan.exercises.length} 个动作 · ${est.totalSets} 组 · 预计 ${estText}</div>
+      ${plan.note ? `<div class="share-pv-note">${esc(plan.note)}</div>` : ''}
+      <div class="share-pv-ex">${exHTML}</div>
+    </div>
+    <div class="share-hint" style="margin-top:10px">确认无误后添加到我的模板，之后可以继续编辑并开始训练。</div>
+  `, [
+    { label: '取消', cls: 'ghost', fn: closeModal },
+    { label: '查看并编辑', cls: 'primary', fn: () => {
+        closeModal();
+        const id = addImportedPlan(plan);
+        openEditor(id);
+      } },
+    { label: '添加到我的模板', cls: 'accent', fn: () => {
+        closeModal();
+        addImportedPlan(plan);
+        renderTemplates();
+        toast('已添加到我的模板');
+      } }
+  ]);
+}
+/* 导入到「我的模板」：总是新建，绝不覆盖现有数据；同名自动创建副本 */
+function addImportedPlan(plan) {
+  const copy = JSON.parse(JSON.stringify(plan));
+  copy.id = uid();
+  copy.name = uniquePlanName(copy.name);
+  copy.exercises.forEach(e => { e.id = uid(); e.sets.forEach(s => s.id = uid()); });
+  state.plans.push(copy);
+  save();
+  return copy.id;
+}
+function uniquePlanName(name) {
+  const names = new Set(state.plans.map(p => p.name));
+  if (!names.has(name)) return name;
+  if (!names.has(name + '（副本）')) return name + '（副本）';
+  let i = 2;
+  while (names.has(name + '（副本' + i + '）')) i++;
+  return name + '（副本' + i + '）';
 }
 
 /* ---------------- 数据层 ---------------- */
@@ -1487,10 +1897,15 @@ function renderPlans() {
       </div>
       <div class="pc-last">上次训练：<span>${fmtLastDate(lastTs)}</span></div>
       <div class="pc-buttons">
-        <button class="btn accent big" data-act="start">开始训练</button>
-        <button class="btn ghost pc-icon" data-act="edit" title="编辑">✎</button>
-        <button class="btn ghost pc-icon" data-act="dup" title="复制">⧉</button>
-        <button class="btn ghost danger pc-icon" data-act="del" title="删除">✕</button>
+        <div class="pc-primary-action">
+          <button class="btn accent big" data-act="start">开始训练</button>
+        </div>
+        <div class="pc-secondary-actions">
+          <button class="btn ghost small" data-act="edit" title="编辑">编辑</button>
+          <button class="btn ghost small" data-act="dup" title="复制">复制</button>
+          <button class="btn ghost small pc-export" data-act="export" title="导出模板">导出</button>
+          <button class="btn ghost small danger" data-act="del" title="删除">删除</button>
+        </div>
       </div>
     `;
     list.appendChild(card);
@@ -2464,6 +2879,29 @@ function bindEvents() {
     else if (btn.dataset.act === 'apply') applyTemplate(tplId);
   });
 
+  // 我的模板列表（使用 / 编辑 / 复制 / 导出 / 删除）
+  $('#my-template-list').addEventListener('click', e => {
+    const card = e.target.closest('.plan-card');
+    if (!card) return;
+    const p = state.plans.find(x => x.id === card.dataset.pid);
+    if (!p) return;
+    const btn = e.target.closest('[data-act]');
+    if (!btn) { openEditor(p.id); return; }
+    const act = btn.dataset.act;
+    if (act === 'start') startWorkout(p.id);
+    else if (act === 'edit') openEditor(p.id);
+    else if (act === 'dup') { duplicatePlan(p.id); renderTemplates(); toast('已复制模板'); }
+    else if (act === 'export') exportTemplate(p.id);
+    else if (act === 'del') {
+      confirmModal(`删除模板「${p.name}」？`, () => {
+        state.plans = state.plans.filter(x => x.id !== p.id);
+        save(); renderTemplates(); toast('已删除');
+      });
+    }
+  });
+  $('#btn-import-template').onclick = openImportModal;
+  $('#btn-import-template-2').onclick = openImportModal;
+
   // 计划列表
   $('#btn-create-plan').onclick = createPlan;
   $('#btn-empty-create').onclick = createPlan;
@@ -2479,6 +2917,7 @@ function bindEvents() {
     if (act === 'edit') openEditor(p.id);
     else if (act === 'start') startWorkout(p.id);
     else if (act === 'dup') { duplicatePlan(p.id); renderPlans(); }
+    else if (act === 'export') exportTemplate(p.id);
     else if (act === 'del') confirmModal(`删除计划「${p.name}」？`, () => { state.plans = state.plans.filter(x => x.id !== p.id); save(); renderPlans(); toast('已删除'); });
   });
 
