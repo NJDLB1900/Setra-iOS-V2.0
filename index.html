@@ -953,7 +953,10 @@ select.ex-cat-input option { background: var(--surface); color: var(--text); }
           <button id="btn-export" class="btn ghost">导出全部数据</button>
           <button id="btn-import-data" class="btn ghost">导入数据</button>
         </div>
-        <button id="btn-clear-data" class="btn danger ghost">清空所有数据</button>
+        <div class="btn-row">
+          <button id="btn-restore-backup" class="btn ghost">从备份恢复</button>
+          <button id="btn-clear-data" class="btn danger ghost">清空所有数据</button>
+        </div>
       </div>
       <div class="settings-card">
         <h3>关于</h3>
@@ -1521,8 +1524,26 @@ function shareFnv1a(bytes) {
   return h >>> 0;
 }
 function shareNumOrNull(v) { return (typeof v === 'number' && isFinite(v)) ? v : null; }
+/* deflate 压缩（新格式）。浏览器不支持或压缩失败返回 null，编码端降级为未压缩旧格式 */
+async function shareDeflate(bytes) {
+  if (typeof CompressionStream !== 'function') return null;
+  try {
+    const stream = new Blob([new Uint8Array(bytes)]).stream().pipeThrough(new CompressionStream('deflate'));
+    const buf = await new Response(stream).arrayBuffer();
+    return Array.from(new Uint8Array(buf));
+  } catch (e) { return null; }
+}
+/* deflate 解压，失败返回 null */
+async function shareInflate(bytes) {
+  if (typeof DecompressionStream !== 'function') return null;
+  try {
+    const stream = new Blob([new Uint8Array(bytes)]).stream().pipeThrough(new DecompressionStream('deflate'));
+    const buf = await new Response(stream).arrayBuffer();
+    return Array.from(new Uint8Array(buf));
+  } catch (e) { return null; }
+}
 // 训练计划 → 分享代码（纯字母数字）
-function encodeSharePlan(plan) {
+async function encodeSharePlan(plan) {
   const data = {
     v: SHARE_VERSION,
     n: String(plan.name || ''),
@@ -1541,11 +1562,13 @@ function encodeSharePlan(plan) {
       })
     }))
   };
-  const bytes = Array.from(new TextEncoder().encode(JSON.stringify(data)));
-  return b62EncodeBytes(bytes) + shareNumToB62(shareFnv1a(bytes), SHARE_CHECK_LEN);
+  const jsonBytes = Array.from(new TextEncoder().encode(JSON.stringify(data)));
+  // 优先压缩传输（新格式，首字节 0x78）；不支持时降级为未压缩 JSON（旧格式，首字节 0x7B '{'）
+  const payload = (await shareDeflate(jsonBytes)) || jsonBytes;
+  return b62EncodeBytes(payload) + shareNumToB62(shareFnv1a(payload), SHARE_CHECK_LEN);
 }
-// 分享代码 → 训练计划（严格验证，返回 { ok, msg?, plan? }）
-function decodeShareCode(raw) {
+// 分享代码 → 训练计划（严格验证，返回 { ok, msg?, plan? }）。自动识别新旧格式。
+async function decodeShareCode(raw) {
   const code = String(raw || '').trim();
   if (!code) return { ok: false, msg: '请输入模板代码。' };
   if (code.length < SHARE_CHECK_LEN + 1) return { ok: false, msg: '模板代码无效或已损坏。' };
@@ -1554,8 +1577,15 @@ function decodeShareCode(raw) {
   const bytes = b62Decode(code.slice(0, -SHARE_CHECK_LEN));
   if (!bytes) return { ok: false, msg: '无法读取模板代码，请确认代码完整。' };
   if (shareNumToB62(shareFnv1a(bytes), SHARE_CHECK_LEN) !== code.slice(-SHARE_CHECK_LEN)) return { ok: false, msg: '模板代码已损坏，请重新复制。' };
+  // 双路径识别：首字节 0x7B('{') = 旧格式(未压缩JSON)；否则按新格式(zlib压缩流)解压
+  let payload = bytes;
+  if (bytes[0] !== 0x7B) {
+    const inflated = await shareInflate(bytes);
+    if (!inflated || !inflated.length || inflated[0] !== 0x7B) return { ok: false, msg: '模板数据无效或已损坏。' };
+    payload = inflated;
+  }
   let text;
-  try { text = new TextDecoder().decode(new Uint8Array(bytes)); }
+  try { text = new TextDecoder().decode(new Uint8Array(payload)); }
   catch (e) { return { ok: false, msg: '无法读取模板代码，请确认代码完整。' }; }
   let data;
   try { data = JSON.parse(text); }
@@ -1662,10 +1692,10 @@ function renderMyTemplates() {
 }
 
 /* 导出模板：生成分享代码并打开导出弹窗 */
-function exportTemplate(planId) {
+async function exportTemplate(planId) {
   const p = state.plans.find(x => x.id === planId);
   if (!p) return;
-  const code = encodeSharePlan(p);
+  const code = await encodeSharePlan(p);
   if (code.length > SHARE_MAX_LEN) { toast('模板内容过多，请减少动作或训练组后再导出。'); return; }
   showExportModal(p, code);
 }
@@ -1733,9 +1763,9 @@ function openImportModal() {
   };
   setTimeout(() => { try { inp.focus(); } catch (e) {} }, 60);
 }
-function handleImportCode() {
+async function handleImportCode() {
   const inp = $('#share-input');
-  const res = decodeShareCode(inp ? inp.value : '');
+  const res = await decodeShareCode(inp ? inp.value : '');
   if (!res.ok) { toast(res.msg); return; }
   closeModal();
   showImportPreview(res.plan);
@@ -1792,6 +1822,7 @@ function uniquePlanName(name) {
 
 /* ---------------- 数据层 ---------------- */
 const KEY = 'fittrack_v2_data';
+const BACKUP_KEY = 'fittrack_v2_backup';   // 自动备份 key（防误覆盖，可手动恢复）
 let state = {
   plans: [],
   logs: [],
@@ -1805,10 +1836,50 @@ function load() {
   } catch (e) { console.warn('load fail', e); }
   // 迁移：若存在旧版数据，尝试引入
   migrateLegacy();
+  // 保护：主 key 无任何数据时，尝试从自动备份恢复（防止升级/误操作导致数据丢失）
+  restoreFromBackup();
 }
 function save() {
+  // 写前自动备份当前已存数据，作为安全网
+  try {
+    const old = localStorage.getItem(KEY);
+    if (old && state.plans.length) localStorage.setItem(BACKUP_KEY, old);
+  } catch (e) { /* 备份失败不影响主写入 */ }
   try { localStorage.setItem(KEY, JSON.stringify(state)); }
   catch (e) { console.warn('save fail', e); }
+}
+/* 从自动备份恢复（仅当主数据完全为空时自动执行） */
+function restoreFromBackup() {
+  if (state.plans.length || state.logs.length) return;
+  try {
+    const bak = localStorage.getItem(BACKUP_KEY);
+    if (!bak) return;
+    const db = JSON.parse(bak);
+    if (db && Array.isArray(db.plans) && db.plans.length) {
+      state = Object.assign(state, db);
+      save();
+      console.warn('已从自动备份恢复数据');
+    }
+  } catch (e) { console.warn('backup restore fail', e); }
+}
+/* 手动恢复备份：返回备份是否存在 */
+function hasBackup() {
+  try { const bak = localStorage.getItem(BACKUP_KEY); return !!(bak && JSON.parse(bak).plans.length); }
+  catch (e) { return false; }
+}
+function restoreBackupManually() {
+  try {
+    const bak = localStorage.getItem(BACKUP_KEY);
+    if (!bak) { toast('没有可用的备份'); return false; }
+    const db = JSON.parse(bak);
+    if (!db || !Array.isArray(db.plans)) { toast('备份数据无效'); return false; }
+    state = Object.assign({ plans: [], logs: [], settings: state.settings, session: null }, db);
+    state.settings = Object.assign({ unit: 'kg', timeunit: 's', sound: true }, db.settings || {});
+    save();
+    renderPlans(); renderTemplates(); renderHistory(); renderSettings();
+    toast('已从备份恢复');
+    return true;
+  } catch (e) { toast('备份恢复失败'); return false; }
 }
 function migrateLegacy() {
   if (state.plans.length) return;
@@ -2116,16 +2187,9 @@ function updateEditorSummary(p) {
   if (estEl) estEl.textContent = hasTarget ? fmtDuration(totalSec) : '未填写时长';
   const detEl = $('#editor-estimate-detail');
   if (detEl) detEl.textContent = `${totalSets} 组 · 含组间休息`;
+  // 不再强制 60 分钟目标警告（用户计划时长由用户自行设定）
   const warnEl = $('#editor-warn');
-  if (warnEl) {
-    if (hasTarget && totalSec > 3600) {
-      const over = totalSec - 3600;
-      warnEl.hidden = false;
-      warnEl.innerHTML = `预计训练时间：<b>${fmtDuration(totalSec)}</b>，已超过 60 分钟目标 <b class="warn-amt">${fmtDuration(over)}</b>`;
-    } else {
-      warnEl.hidden = true;
-    }
-  }
+  if (warnEl) warnEl.hidden = true;
   box.hidden = totalSets === 0;
 }
 
@@ -3135,6 +3199,10 @@ function bindEvents() {
   $('#btn-export').onclick = exportData;
   $('#btn-import-data').onclick = () => $('#file-import').click();
   $('#file-import').onchange = e => { if (e.target.files[0]) importData(e.target.files[0]); e.target.value = ''; };
+  $('#btn-restore-backup').onclick = () => {
+    if (!hasBackup()) { toast('没有可用的备份'); return; }
+    confirmModal('将用最近一次的自动备份覆盖当前数据。确定恢复？', restoreBackupManually);
+  };
   $('#btn-clear-data').onclick = () => {
     confirmModal('确定清空所有数据？此操作不可恢复！', () => {
       state = { plans: [], logs: [], settings: state.settings, session: null };
